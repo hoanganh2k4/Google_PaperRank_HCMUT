@@ -1,156 +1,270 @@
-# Google PageRank Algorithm — Hướng dẫn Cài đặt & Chạy
+# Google PageRank Algorithm — Modular Implementation
 
-## Yêu cầu hệ thống
+A from-scratch implementation of Google's PageRank algorithm and three variants
+(Personalized, Topic-Sensitive, Weighted), applied to both a synthetic graph
+and three Stanford SNAP real-world datasets.
 
-- Python **3.10+** (dùng type hint `X | Y` và `list[int]`)
-- pip
+> No built-in PageRank library is used (no `networkx.pagerank`, no
+> `scipy.sparse.linalg.eigs`). Only `numpy` and `matplotlib` are required.
 
 ---
 
-## Cài đặt
+## Project structure
 
-### 1. Kiểm tra phiên bản Python
-
-```bash
-python3 --version
+```
+Google_PaperRank_HCMUT/
+├── pagerank.py                  # Entry point — orchestrates the 8-step pipeline
+├── src/                         # Source package (one module per responsibility)
+│   ├── __init__.py
+│   ├── data_loader.py           # Download + parse Stanford SNAP edge lists
+│   ├── graph.py                 # WebGraph class (synthetic + real construction)
+│   ├── matrix.py                # Build link matrix P and Google matrix G
+│   ├── algorithms.py            # Power Iteration: dense and sparse
+│   ├── variants.py              # Personalized / Topic-Sensitive / Weighted PR
+│   ├── analysis.py              # Spearman rank correlation, ranking-table printer
+│   └── visualization.py         # 4 separate figures per dataset
+│
+├── data/                        # Cached SNAP datasets (auto-downloaded)
+│   ├── wiki-Vote.txt
+│   ├── p2p-Gnutella04.txt
+│   └── ca-GrQc.txt
+│
+├── pagerank_results_synthetic/  # Output: 4 figures per dataset
+├── pagerank_results_wiki-Vote/
+├── pagerank_results_p2p-Gnutella04/
+├── pagerank_results_ca-GrQc/
+│
+├── evaluation_wiki-Vote.md      # Result analysis per dataset
+├── evaluation_p2p-Gnutella04.md
+├── evaluation_ca-GrQc.md
+├── evaluation_data_structure.md # SNAP file-format analysis across the 3 datasets
+└── README.md                    # This file
 ```
 
-Kết quả phải là `Python 3.10.x` trở lên.
+---
 
-### 2. Cài đặt thư viện
+## System requirements
 
-Chương trình chỉ dùng **2 thư viện chuẩn**:
-
-| Thư viện | Mục đích |
-|---|---|
-| `numpy` | Đại số tuyến tính, nhân ma trận |
-| `matplotlib` | Vẽ biểu đồ |
+- Python **3.10+** (uses `X | Y` and `list[int]` type hints)
+- `numpy`, `matplotlib`
 
 ```bash
 pip install numpy matplotlib
 ```
 
-Hoặc nếu dùng môi trường ảo:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate      # Linux/macOS
-# venv\Scripts\activate       # Windows
-
-pip install numpy matplotlib
-```
-
-> **Lưu ý:** Chương trình **không** dùng bất kỳ thư viện PageRank có sẵn nào (networkx, scipy.sparse.linalg.eigs, v.v.).
-
 ---
 
-## Chạy chương trình
-
-### Chế độ 1 — Đồ thị tự sinh (150 trang, không cần internet)
+## How to run
 
 ```bash
-cd /home/haa900/DSTT
+# Synthetic 150-page graph (no internet)
 python3 pagerank.py
-```
 
-### Chế độ 2 — Dataset thực từ Stanford SNAP (cần internet lần đầu)
-
-```bash
-# Wikipedia voting network (7,115 nút, 103,689 cạnh) — mặc định
-python3 pagerank.py --real
-
-# Gnutella P2P network (10,879 nút, 39,994 cạnh)
+# Real datasets from Stanford SNAP (downloaded once, then cached in data/)
+python3 pagerank.py --real                              # default: wiki-Vote
 python3 pagerank.py --real --dataset p2p-Gnutella04
-
-# Collaboration network arxiv GR-QC (5,242 nút, 28,980 cạnh)
 python3 pagerank.py --real --dataset ca-GrQc
 ```
 
-> Dataset được tải về và cache tại `DSTT/data/` — lần sau chạy không cần tải lại.
+Each run prints the 8-step pipeline on the terminal and writes 4 PNG figures
+into `pagerank_results_<dataset>/`:
+
+| File | Content |
+|---|---|
+| `01_score_distribution.png` | PageRank score vs. rank (log scale) — power-law shape |
+| `02_top20_pages.png`        | Top 20 pages bar chart, colored by topic (synthetic) |
+| `03_alpha_effect.png`       | How α ∈ {0.50, 0.65, 0.75, 0.85, 0.90, 0.95} affects the Top-5 |
+| `04_spearman_correlation.png` | 6×6 Spearman ρ between α values (ranking robustness) |
 
 ---
 
-## Output khi chạy
-
-### Terminal
-
-Chương trình in tuần tự 8 bước:
+## 8-step pipeline (printed at runtime)
 
 ```
-[1] Xây dựng đồ thị web G(V, E) với 150 trang
-[2] Xây dựng ma trận liên kết P (150×150)
-[3] Xây dựng Google Matrix G với α = 0.85
-[4] Tính PageRank bằng Power Iteration
-    → Bảng xếp hạng Top 20
-[5] Phân tích ảnh hưởng của α ∈ {0.50, 0.65, 0.75, 0.85, 0.90, 0.95}
-[6] Các biến thể PageRank
-    [6a] Personalized PageRank
-    [6b] Topic-Sensitive PageRank
-    [6c] Weighted PageRank
-[7] So sánh Top-10 giữa các biến thể
-[8] Lưu biểu đồ trực quan
-```
-
-### File ảnh
-
-Biểu đồ được lưu tự động theo chế độ:
-
-```
-DSTT/pagerank_results_synthetic.png   ← chế độ tự sinh
-DSTT/pagerank_results_wiki-Vote.png   ← chế độ --real --dataset wiki-Vote
-DSTT/pagerank_results_p2p-Gnutella04.png
-DSTT/data/wiki-Vote.txt               ← cache dataset (tải 1 lần)
-```
-
-Gồm 4 panel:
-- **Phân phối score** (log scale) — dạng power law
-- **Top 20 trang** (màu theo chủ đề)
-- **Ảnh hưởng của α** lên Top-5 trang
-- **Ma trận tương quan Spearman** giữa các giá trị α
-
----
-
-## Cấu trúc chương trình
-
-```
-pagerank.py
-├── WebGraph                   # Đồ thị web G(V, E) — 150 trang, 5 chủ đề
-├── build_link_matrix()        # Ma trận P (column-stochastic)
-├── build_google_matrix()      # G = αP + (1-α)(1/n)ee^T
-├── pagerank_power_iteration() # Power Iteration trên ma trận đầy đủ
-├── pagerank_sparse()          # Power Iteration trên đồ thị thưa (hiệu quả hơn)
-├── personalized_pagerank()    # Biến thể: Personalized PageRank
-├── topic_sensitive_pagerank() # Biến thể: Topic-Sensitive PageRank
-├── weighted_pagerank()        # Biến thể: Weighted PageRank
-├── analyze_alpha()            # Phân tích ảnh hưởng của α
-├── spearman_rank_corr()       # Tương quan hạng Spearman (tự cài, không dùng scipy)
-├── print_table()              # In bảng xếp hạng
-├── plot_results()             # Vẽ và lưu biểu đồ
-└── main()                     # Điều phối toàn bộ
+[1] Build the web graph G(V, E)
+[2] Build link matrix P (column-stochastic Markov matrix)
+[3] Build Google matrix G = αP + (1-α)(1/n)ee^T
+[4] Compute PageRank via Power Iteration   → Top-20 table
+[5] Analyze the effect of α                → 6 values, Spearman ρ, Top-10 overlap
+[6] PageRank variants                      → Personalized, Topic-Sensitive, Weighted
+[7] Compare Top-10 across variants         → correlation matrix
+[8] Save 4 figures per dataset
 ```
 
 ---
 
-## Tham số có thể chỉnh
+## Module responsibilities
 
-Mở `pagerank.py` và sửa trong hàm `main()`:
-
-| Tham số | Vị trí | Mặc định | Ý nghĩa |
-|---|---|---|---|
-| `n_pages` | `WebGraph(n_pages=150)` | 150 | Số trang web |
-| `seed` | `WebGraph(seed=42)` | 42 | Seed sinh đồ thị ngẫu nhiên |
-| `alpha` | `alpha = 0.85` | 0.85 | Damping factor (Google dùng 0.85) |
-| `alphas` | `alphas = [...]` | 6 giá trị | Danh sách α để phân tích |
-| `seed_pages` | `seed = list(range(5))` | [0..4] | Trang seed cho Personalized PR |
-| `query_topic` | `query_topic="Science"` | Science | Chủ đề truy vấn cho Topic-Sensitive PR |
-| `top_k` | `print_table(..., top_k=20)` | 20 | Số trang hiển thị trong bảng |
+| Module | Lines | Responsibility |
+|---|---|---|
+| [`src/data_loader.py`](src/data_loader.py) | ~110 | SNAP URL config, downloader (gzip + cache), edge-list parser |
+| [`src/graph.py`](src/graph.py) | ~140 | `WebGraph` class — synthetic builder + `from_edges()` for SNAP |
+| [`src/matrix.py`](src/matrix.py) | ~60 | `build_link_matrix`, `build_google_matrix` (column-stochastic checks) |
+| [`src/algorithms.py`](src/algorithms.py) | ~95 | `pagerank_power_iteration` (dense), `pagerank_sparse` (O(\|E\|)) |
+| [`src/variants.py`](src/variants.py) | ~110 | Personalized / Topic-Sensitive / Weighted PageRank |
+| [`src/analysis.py`](src/analysis.py) | ~55 | `spearman_rank_corr` (custom, no scipy), `print_table` |
+| [`src/visualization.py`](src/visualization.py) | ~125 | `plot_results` — writes 4 separate PNGs per run |
+| [`pagerank.py`](pagerank.py) | ~230 | Thin CLI entry point, runs the 8-step pipeline |
 
 ---
 
-## Ví dụ kết quả
+## ⭐ Key functions for the report
+
+Below are the functions you should highlight in the written report.
+Each one maps directly to a requirement in the project brief.
+
+### 🔑 1. `build_link_matrix()` → Probability matrix P  *(Requirement 2)*
+**File:** [`src/matrix.py`](src/matrix.py)
+**Why it matters:** Defines the **column-stochastic Markov matrix** that
+encodes the random-surfer transition probabilities. Critical for the report's
+"probability matrix" theory section.
+
+```python
+P[j, i] = 1 / out_degree(i)   if link i → j exists
+          1 / n                if i is a dangling node (no out-links)
+```
+
+Handles dangling nodes by uniform redistribution — prevents rank sinks.
+
+---
+
+### 🔑 2. `build_google_matrix()` → Google matrix G  *(Requirement 2)*
+**File:** [`src/matrix.py`](src/matrix.py)
+**Why it matters:** Combines the link matrix with teleportation to make G
+**primitive** (irreducible + aperiodic). This is what enables the
+Perron–Frobenius guarantee.
+
+```python
+G = α · P + (1 - α) · v · e^T,    0 < α < 1
+```
+
+- α = link-following probability
+- (1-α) = teleportation probability
+- v = personalization vector (uniform 1/n by default)
+
+---
+
+### 🔑 3. `pagerank_sparse()` → Solve π = G·π  *(Requirements 3 & 4)*
+**File:** [`src/algorithms.py`](src/algorithms.py)
+**Why it matters:** The main solver. **Power Iteration** in O(|E|) per
+iteration — does NOT store the full n×n G matrix, so it scales to graphs
+with thousands of nodes (wiki-Vote 7,115; Gnutella 10,879; ca-GrQc 5,241).
+
+Update rule with explicit dangling-mass handling:
+
+```python
+π(k+1) = α · [ P·π(k) + d(k)·v ] + (1 - α) · v
+where d(k) = Σ_{i dangling} π(k)[i]
+```
+
+Convergence guaranteed because |α·λ₂| < 1.
+
+---
+
+### 🔑 4. `pagerank_power_iteration()` → Dense verification  *(Requirement 3)*
+**File:** [`src/algorithms.py`](src/algorithms.py)
+**Why it matters:** Solves π = G·π directly on the full G matrix. Used as
+a **correctness check** against `pagerank_sparse` on small graphs
+(n ≤ 1000). Demonstrates the eigenvector interpretation cleanly:
+π is the left eigenvector of G with eigenvalue 1.
+
+---
+
+### 🔑 5. `personalized_pagerank()`  *(Requirement 6a)*
+**File:** [`src/variants.py`](src/variants.py)
+**Why it matters:** Implements **PPR** (Page & Brin 1999) — teleportation
+restricted to a seed set instead of being uniform. Result: rank concentrates
+in the "neighborhood" of the seeds. Most divergent from Standard PR on
+ca-GrQc (ρ = 0.169) because community structure is strong.
+
+---
+
+### 🔑 6. `topic_sensitive_pagerank()`  *(Requirement 6b)*
+**File:** [`src/variants.py`](src/variants.py)
+**Why it matters:** Implements **Haveliwala 2002** — precompute one π per
+topic, return the relevant one at query time. Demonstrated on synthetic
+data using the 5 built-in topics (Technology, Science, Sports, News,
+Entertainment).
+
+---
+
+### 🔑 7. `weighted_pagerank()`  *(Requirement 6c)*
+**File:** [`src/variants.py`](src/variants.py)
+**Why it matters:** Implements **Xing & Ghorbani 2004** — link weight
+proportional to the in-degree of the target page:
 
 ```
-Rank  Trang       Score         Percentile  Chủ đề
+W(i → j) = in_deg(j) / Σ_{k: i→k} in_deg(k)
+```
+
+Pages already referenced often absorb more rank — amplifies hub effect.
+
+---
+
+### 🔑 8. `spearman_rank_corr()` → α-stability metric  *(Requirement 5)*
+**File:** [`src/analysis.py`](src/analysis.py)
+**Why it matters:** Hand-implemented (no scipy) Spearman ρ used to quantify
+how much ranking changes between two α values. Drives the conclusion that
+**rankings are largely invariant to α**: ρ > 0.99 on wiki-Vote / Gnutella,
+ρ > 0.94 on ca-GrQc.
+
+```
+ρ = 1 - 6·Σd² / (n·(n²-1))
+```
+
+---
+
+### 🔑 9. `WebGraph` class  *(Requirement 1)*
+**File:** [`src/graph.py`](src/graph.py)
+**Why it matters:** Models the directed graph G(V, E). Two construction modes:
+- `WebGraph(n_pages, seed)` → 150-page synthetic graph with 5 topics and 5 hubs
+- `WebGraph.from_edges(edges)` → load any SNAP edge list, remap IDs to [0, n-1]
+
+This is the foundation everything else operates on.
+
+---
+
+## Theory summary
+
+**Link matrix P** — column-stochastic Markov matrix:
+```
+P[j, i] = 1 / out_degree(i)   if i → j
+          0                    otherwise
+```
+
+**Google matrix G** — guarantees a unique stationary distribution:
+```
+G = α · P + (1-α) · (1/n) · e·e^T,    0 < α < 1
+```
+
+**PageRank equation** — eigenvector problem:
+```
+π = G·π        →  solve via Power Iteration:  π(k+1) = G · π(k)
+```
+
+Convergence is guaranteed by the **Perron–Frobenius theorem**: G is a
+primitive stochastic matrix, so its dominant eigenvalue 1 is unique and
+the corresponding eigenvector π is the PageRank vector.
+
+---
+
+## Datasets at a glance
+
+| Dataset | Nodes | Edges | Dangling | Type | Convergence (α=0.85) |
+|---|---|---|---|---|---|
+| Synthetic   | 150    | ~1,340  | 0       | Directed, 5 topics | ~30 iters |
+| wiki-Vote   | 7,115  | 103,689 | 14.1%   | Directed (voting)  | 29 iters  |
+| p2p-Gnutella04 | 10,876 | 39,994  | **54.6%** | Directed (P2P)     | 18 iters  |
+| ca-GrQc     | 5,241  | 28,968  | 0%      | Undirected → directed (collaboration) | **118 iters** |
+
+Detailed per-dataset analysis in `evaluation_*.md`.
+
+---
+
+## Sample synthetic output
+
+```
+Rank  Page        Score         Percentile  Topic
 ────────────────────────────────────────────────────
 1     Page_060    0.02430876         99.3%  Sports
 2     Page_000    0.02402535         98.7%  Technology
@@ -159,24 +273,28 @@ Rank  Trang       Score         Percentile  Chủ đề
 5     Page_090    0.01697217         96.7%  News
 ```
 
+The top-5 are exactly the 5 designed hub pages (one per topic) —
+confirming the algorithm's correctness on a controlled graph.
+
 ---
 
-## Lý thuyết tóm tắt
+## Configurable parameters
 
-**Ma trận P** — Column-stochastic Markov matrix:
-```
-P[j,i] = 1 / out_degree(i)   nếu i → j
-         0                    ngược lại
-```
+Open [`pagerank.py`](pagerank.py) and edit inside `main()`:
 
-**Google Matrix** — Đảm bảo hội tụ:
-```
-G = α·P + (1-α)·(1/n)·ee^T,    0 < α < 1
-```
+| Parameter | Default | Meaning |
+|---|---|---|
+| `n_pages` | 150 | Number of pages in the synthetic graph |
+| `seed`    | 42  | RNG seed for reproducibility |
+| `alpha`   | 0.85 | Damping factor (Google's original) |
+| `alphas`  | `[0.50, 0.65, 0.75, 0.85, 0.90, 0.95]` | α sweep for analysis |
+| `top_k`   | 20 | Rows shown in the ranking table |
 
-**Phương trình PageRank** — Eigenvector problem:
-```
-π = G·π   →   giải bằng Power Iteration:  π(k+1) = G·π(k)
-```
+---
 
-Hội tụ đảm bảo bởi **Định lý Perron-Frobenius**: G là ma trận nguyên thủy nên eigenvalue trội = 1 là duy nhất.
+## Notes
+
+- The project follows the rule: **no built-in PageRank library**.
+- Spearman correlation is also hand-implemented (no `scipy.stats.spearmanr`).
+- For graphs with n > 1000, the full `P` and `G` matrices are skipped to
+  save memory; only the sparse iterator is used.

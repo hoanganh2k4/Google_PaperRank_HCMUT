@@ -1,15 +1,15 @@
-# Đánh giá Cấu trúc Dữ liệu — Ba Dataset SNAP
+# Data Structure Evaluation — Three SNAP Datasets
 
-Tài liệu này phân tích định dạng file, ý nghĩa từng cột, và đặc trưng thống kê của ba dataset được tải về từ Stanford SNAP để chạy PageRank.
+This document analyzes the file format, column semantics, and statistical characteristics of the three datasets downloaded from Stanford SNAP for the PageRank experiments.
 
 ---
 
-## 1. Định dạng chung — SNAP Edge List
+## 1. Common Format — SNAP Edge List
 
-Cả ba file đều theo **định dạng SNAP edge list**:
+All three files follow the **SNAP edge-list format**:
 
 ```
-# Dòng comment bắt đầu bằng #
+# Comment lines start with #
 # Nodes: <n>  Edges: <m>
 # FromNodeId    ToNodeId
 <src>   <dst>
@@ -17,17 +17,17 @@ Cả ba file đều theo **định dạng SNAP edge list**:
 ...
 ```
 
-**Quy tắc đọc:**
-- Dòng bắt đầu bằng `#` → bỏ qua (metadata/comment).
-- Mỗi dòng dữ liệu gồm **hai số nguyên** cách nhau bởi tab: `src` và `dst`.
-- Mỗi dòng = **một cạnh có hướng** từ nút `src` đến nút `dst`.
-- Node ID là số nguyên tùy ý (không nhất thiết liên tục từ 0).
-- Self-loop (`src == dst`) không xuất hiện trong ba dataset này.
-- **Không có trọng số cạnh** — đồ thị nhị phân (0/1).
+**Parsing rules:**
+- Lines starting with `#` → skip (metadata/comments).
+- Each data line contains **two integers** separated by tab: `src` and `dst`.
+- Each line = **one directed edge** from node `src` to node `dst`.
+- Node IDs are arbitrary integers (not necessarily contiguous from 0).
+- Self-loops (`src == dst`) do not appear in these three datasets.
+- **No edge weights** — binary (0/1) graph.
 
-**Cách chương trình xử lý:**
+**How the program handles them:**
 ```python
-# Hàm load_snap_edges() trong pagerank.py
+# load_snap_edges() in pagerank.py
 edges = []
 for line in file:
     if line.startswith('#'): continue
@@ -35,7 +35,7 @@ for line in file:
     if src != dst:
         edges.append((src, dst))
 
-# Hàm WebGraph.from_edges() remap về [0, n-1]
+# WebGraph.from_edges() remaps to [0, n-1]
 all_nodes = sorted(set(u for e in edges for u in e))
 remap = {old: new for new, old in enumerate(all_nodes)}
 ```
@@ -44,7 +44,7 @@ remap = {old: new for new, old in enumerate(all_nodes)}
 
 ## 2. wiki-Vote.txt
 
-### 2.1 Header và ý nghĩa
+### 2.1 Header and meaning
 
 ```
 # Directed graph (each unordered pair of nodes is saved once): Wiki-Vote.txt
@@ -57,30 +57,30 @@ remap = {old: new for new, old in enumerate(all_nodes)}
 ...
 ```
 
-**Giải thích:**
-- **Nút** = người dùng Wikipedia (được định danh bằng ID số nguyên).
-- **Cạnh A → B** = người dùng A đã bỏ phiếu cho B trong cuộc bầu chọn admin.
-- Dữ liệu thu thập đến tháng 1/2008, bao gồm tất cả lịch sử bỏ phiếu.
-- Một người dùng có thể bỏ nhiều phiếu (nhiều dòng từ cùng một `src`).
-- **Không lưu phiếu thuận/phản** — chỉ ghi nhận hành động bỏ phiếu.
+**Explanation:**
+- **Node** = a Wikipedia user (identified by an integer ID).
+- **Edge A → B** = user A voted for B in an administrator election.
+- Data collected through January 2008, covering all voting history.
+- A user can cast many votes (many lines from the same `src`).
+- **Vote polarity (yes/no) is not stored** — only the act of voting.
 
-### 2.2 Thống kê cấu trúc
+### 2.2 Structural statistics
 
-| Chỉ số | Giá trị |
+| Metric | Value |
 |---|---|
-| Số nút | 7,115 |
-| Số cạnh (unique) | 103,689 |
+| Number of nodes | 7,115 |
+| Unique edges | 103,689 |
 | Duplicate edges | 0 |
-| Out-degree trung bình | 14.57 |
-| Out-degree trung vị | **2.0** |
-| Out-degree lệch chuẩn | 42.28 |
-| Out-degree tối đa | **893** (nút 2565) |
-| In-degree tối đa | **457** (nút 4037) |
+| Mean out-degree | 14.57 |
+| Median out-degree | **2.0** |
+| Out-degree stdev | 42.28 |
+| Max out-degree | **893** (node 2565) |
+| Max in-degree | **457** (node 4037) |
 | Dangling nodes (out=0) | 1,005 (14.1%) |
 | Source-only nodes (in=0) | **4,734 (66.5%)** |
-| Cạnh đối xứng (A→B và B→A) | 2,927 (2.8%) |
+| Reciprocal edges (A→B and B→A) | 2,927 (2.8%) |
 
-### 2.3 Phân phối out-degree
+### 2.3 Out-degree distribution
 
 ```
    =0:  1005  █████
@@ -94,30 +94,30 @@ remap = {old: new for new, old in enumerate(all_nodes)}
   100+:  226  █
 ```
 
-### 2.4 Nhận xét và cách hiểu
+### 2.4 Comments and interpretation
 
-**Quan sát 1: Đa số người dùng chỉ bỏ 1–2 phiếu, nhưng một số ít bỏ hàng trăm phiếu.**
+**Observation 1: Most users cast 1–2 votes, but a small minority cast hundreds.**
 
-Mean = 14.57 nhưng median = 2 và stdev = 42.28 — phân phối lệch phải cực mạnh (heavy-tailed). Nút 2565 bỏ tới **893 phiếu** (tương đương tham gia ~893 cuộc bầu chọn), trong khi đại đa số chỉ bỏ 1–2.
+Mean = 14.57 but median = 2 and stdev = 42.28 — an extremely right-skewed (heavy-tailed) distribution. Node 2565 cast **893 votes** (participated in ~893 elections), while the vast majority cast only 1–2.
 
-**Quan sát 2: 66.5% nút có in-degree = 0 — không bao giờ được bầu.**
+**Observation 2: 66.5% of nodes have in-degree = 0 — never elected.**
 
-Hơn 2/3 người dùng Wikipedia chưa bao giờ ứng cử làm admin, hoặc ứng cử nhưng không có phiếu nào được ghi nhận. Đây là nhóm "voter thuần túy".
+More than two-thirds of Wikipedia users never ran for admin, or ran but received no recorded vote. This is the "pure voters" group.
 
-**Quan sát 3: Chỉ 2.8% cạnh đối xứng — bỏ phiếu qua lại rất hiếm.**
+**Observation 3: Only 2.8% of edges are reciprocal — mutual voting is rare.**
 
-Hành động A → B (A bầu B) gần như không bao giờ kéo theo B → A. Đây là đặc trưng của đồ thị **bỏ phiếu bất đối xứng** — ảnh hưởng tới PageRank: người bỏ nhiều phiếu (out-degree cao) không nhất thiết nhận được nhiều phiếu (in-degree cao).
+The action A → B (A votes for B) almost never implies B → A. This is the characteristic of an **asymmetric voting graph** — it affects PageRank: heavy voters (high out-degree) do not necessarily receive many votes (high in-degree).
 
-**Ý nghĩa PageRank:**
-- Nút in-degree cao (nút 4037: 457 phiếu) = người được cộng đồng tín nhiệm nhất.
-- Nút out-degree cao (nút 2565: 893 phiếu) = người hoạt động bầu chọn nhiều nhất nhưng PageRank thấp vì không được ai bầu lại.
-- Top-5 in-degree và top-5 out-degree là **các nút hoàn toàn khác nhau** — chứng minh PageRank đo "uy tín nhận được" khác với "mức độ hoạt động".
+**PageRank implication:**
+- High-in-degree node (node 4037: 457 votes) = the most community-trusted user.
+- High-out-degree node (node 2565: 893 votes) = the most active voter, but has low PageRank because no one voted back.
+- Top-5 in-degree and top-5 out-degree are **completely different sets of nodes** — demonstrating that PageRank measures "received trust" rather than "activity level".
 
 ---
 
 ## 3. p2p-Gnutella04.txt
 
-### 3.1 Header và ý nghĩa
+### 3.1 Header and meaning
 
 ```
 # Directed graph (each unordered pair of nodes is saved once): p2p-Gnutella04.txt
@@ -130,29 +130,29 @@ Hành động A → B (A bầu B) gần như không bao giờ kéo theo B → A.
 ...
 ```
 
-**Giải thích:**
-- **Nút** = một máy tính (peer) tham gia mạng Gnutella vào ngày 04/08/2002.
-- **Cạnh A → B** = peer A biết địa chỉ của peer B và có thể gửi truy vấn tìm file đến B.
-- Gnutella là mạng chia sẻ file P2P thế hệ đầu (không có máy chủ trung tâm).
-- Node ID từ 0 liên tục — đây là snapshot một thời điểm trong ngày.
+**Explanation:**
+- **Node** = a computer (peer) participating in the Gnutella network on August 4, 2002.
+- **Edge A → B** = peer A knows peer B's address and can send file queries to B.
+- Gnutella is a first-generation P2P file-sharing network (no central server).
+- Node IDs are contiguous from 0 — this is a single-time-point snapshot.
 
-### 3.2 Thống kê cấu trúc
+### 3.2 Structural statistics
 
-| Chỉ số | Giá trị |
+| Metric | Value |
 |---|---|
-| Số nút | 10,876 |
-| Số cạnh (unique) | 39,994 |
+| Number of nodes | 10,876 |
+| Unique edges | 39,994 |
 | Duplicate edges | 0 |
-| Out-degree trung bình | 3.68 |
-| Out-degree trung vị | **0.0** |
-| Out-degree lệch chuẩn | 4.92 |
-| Out-degree tối đa | **100** (nút 3109) |
-| In-degree tối đa | **72** (nút 1054) |
+| Mean out-degree | 3.68 |
+| Median out-degree | **0.0** |
+| Out-degree stdev | 4.92 |
+| Max out-degree | **100** (node 3109) |
+| Max in-degree | **72** (node 1054) |
 | Dangling nodes (out=0) | **5,941 (54.6%)** |
 | Source-only nodes (in=0) | 20 (0.2%) |
-| Cạnh đối xứng | **0 (0.0%)** |
+| Reciprocal edges | **0 (0.0%)** |
 
-### 3.3 Phân phối out-degree
+### 3.3 Out-degree distribution
 
 ```
    =0:  5941  █████████████████████
@@ -166,30 +166,30 @@ Hành động A → B (A bầu B) gần như không bao giờ kéo theo B → A.
   100+:    0
 ```
 
-### 3.4 Nhận xét và cách hiểu
+### 3.4 Comments and interpretation
 
-**Quan sát 1: Phân phối out-degree lưỡng đỉnh (bimodal) — 0 hoặc 6–10.**
+**Observation 1: Bimodal out-degree distribution — 0 or 6–10.**
 
-Đây là đặc điểm nổi bật nhất của Gnutella. Lý do kỹ thuật: giao thức Gnutella quy định mỗi peer khi tham gia phải kết nối đến một số cố định peer khác (thường là **ultrapeer**, khoảng 6–10 kết nối). Peer không đủ năng lực sẽ hoạt động ở chế độ **leaf** (lá) — chỉ nhận, không chuyển tiếp — dẫn đến out-degree = 0.
+This is the most prominent feature of Gnutella. Technical reason: the Gnutella protocol requires each joining peer to connect to a fixed number of other peers (typically **ultrapeers**, around 6–10 connections). Peers with insufficient capability run as **leaves** — receive only, do not forward — yielding out-degree = 0.
 
-**Quan sát 2: 0% cạnh đối xứng — kết nối một chiều hoàn toàn.**
+**Observation 2: 0% reciprocal edges — fully one-directional connections.**
 
-Không có bất kỳ cặp (A→B, B→A) nào. Trong Gnutella, kết nối không tự động hai chiều: A biết B không có nghĩa B biết A. Điều này tạo ra đồ thị **có hướng bất đối xứng tuyệt đối**.
+Not a single (A→B, B→A) pair exists. In Gnutella, connections are not automatically bidirectional: A knowing B does not imply B knowing A. This produces a **strictly asymmetric directed graph**.
 
-**Quan sát 3: 54.6% nút là "leaf" (lá) — chỉ nhận, không chuyển tiếp.**
+**Observation 3: 54.6% of nodes are "leaves" — receive only, do not forward.**
 
-Hơn nửa số peer không có liên kết ra (out-degree = 0). Đây là dangling nodes — trong PageRank, rank của chúng được phân phối đồng đều qua cơ chế teleportation thay vì chảy qua liên kết. Điều này giải thích tại sao p2p-Gnutella04 hội tụ **nhanh nhất** (18 vòng): phần lớn mass đã được "làm phẳng" ngay từ đầu.
+More than half the peers have no outbound link (out-degree = 0). These are dangling nodes — in PageRank, their rank is uniformly redistributed via teleportation rather than flowing along links. This explains why p2p-Gnutella04 converges **the fastest** (18 iterations): much of the mass is "flattened" right from the start.
 
-**Ý nghĩa PageRank:**
-- Peer có in-degree cao (nút 1054: 72) = **ultrapeer nổi tiếng**, được nhiều peer khác trỏ đến để tìm file.
-- Các nút 0, 1, 2... được kết nối tuần tự trong snapshot → phản ánh thứ tự tham gia mạng theo thời gian thực.
-- Không thể có "bỏ phiếu lại" (0% reciprocal) → cấu trúc phân cấp rõ ràng (ultrapeer → leaf).
+**PageRank implication:**
+- High-in-degree peer (node 1054: 72) = **a well-known ultrapeer**, referenced by many other peers for file lookups.
+- Nodes 0, 1, 2... are connected sequentially in the snapshot → reflects the chronological order in which peers joined the network.
+- "Reverse voting" is impossible (0% reciprocal) → a clear hierarchical structure (ultrapeer → leaf).
 
 ---
 
 ## 4. ca-GrQc.txt
 
-### 4.1 Header và ý nghĩa
+### 4.1 Header and meaning
 
 ```
 # Directed graph (each unordered pair of nodes is saved once): CA-GrQc.txt
@@ -201,35 +201,35 @@ Hơn nửa số peer không có liên kết ra (out-degree = 0). Đây là dangl
 3466    5233
 3466    8579
 ...
-10310   3466      ← cạnh ngược: 10310 cũng đồng tác giả với 3466
+10310   3466      ← reverse edge: 10310 also coauthored with 3466
 ```
 
-**Giải thích:**
-- **Nút** = nhà khoa học có ít nhất một bài báo trên arXiv danh mục General Relativity & Quantum Cosmology.
-- **Cạnh A → B** = A và B đã **đồng tác giả** ít nhất một bài báo.
-- Đây là **đồ thị vô hướng** (undirected) nhưng SNAP lưu dưới dạng directed bằng cách ghi cả hai chiều:  
-  `A → B` và `B → A` đều xuất hiện trong file.
-- Node ID là số nguyên tùy ý (không liên tục, range rộng như 3466, 8579, 19607...).
+**Explanation:**
+- **Node** = a scientist with at least one paper on arXiv in the General Relativity & Quantum Cosmology category.
+- **Edge A → B** = A and B **coauthored** at least one paper.
+- This is fundamentally an **undirected graph**, but SNAP stores it as directed by writing both directions:
+  `A → B` and `B → A` both appear in the file.
+- Node IDs are arbitrary integers (non-contiguous, broad range such as 3466, 8579, 19607...).
 
-### 4.2 Thống kê cấu trúc
+### 4.2 Structural statistics
 
-| Chỉ số | Giá trị |
+| Metric | Value |
 |---|---|
-| Số nút | 5,241 |
-| Số cạnh (unique) | 28,968 |
+| Number of nodes | 5,241 |
+| Unique edges | 28,968 |
 | Duplicate edges | 0 |
-| Out-degree trung bình | 5.53 |
-| Out-degree trung vị | **3.0** |
-| Out-degree lệch chuẩn | 7.92 |
-| Out-degree tối đa | **81** (nút 21012) |
-| In-degree tối đa | **81** (nút 21012) — **cùng nút!** |
+| Mean out-degree | 5.53 |
+| Median out-degree | **3.0** |
+| Out-degree stdev | 7.92 |
+| Max out-degree | **81** (node 21012) |
+| Max in-degree | **81** (node 21012) — **same node!** |
 | Dangling nodes (out=0) | **0 (0.0%)** |
 | Source-only nodes (in=0) | **0 (0.0%)** |
-| Cạnh đối xứng | **14,484 (50.0%)** |
+| Reciprocal edges | **14,484 (50.0%)** |
 
-Top-5 in-degree = Top-5 out-degree = **cùng 5 nút, cùng giá trị** → xác nhận đây là đồ thị symmetric.
+Top-5 in-degree = Top-5 out-degree = **same 5 nodes, same values** → confirming this is a symmetric graph.
 
-### 4.3 Phân phối out-degree
+### 4.3 Out-degree distribution
 
 ```
    =0:     0
@@ -243,90 +243,90 @@ Top-5 in-degree = Top-5 out-degree = **cùng 5 nút, cùng giá trị** → xác
   100+:    0
 ```
 
-### 4.4 Nhận xét và cách hiểu
+### 4.4 Comments and interpretation
 
-**Quan sát 1: Đúng 50.0% cạnh đối xứng — đồ thị vô hướng lưu dưới dạng directed.**
+**Observation 1: Exactly 50.0% reciprocal edges — undirected graph stored as directed.**
 
-Header SNAP ghi "each unordered pair of nodes is saved once" nhưng thực tế **mỗi cạnh vô hướng được lưu thành 2 cạnh có hướng**. Ví dụ cạnh (3466, 10310) xuất hiện ở cả hai dạng:
-- Dòng `3466 → 10310` (từ bộ cạnh của nút 3466)
-- Dòng `10310 → 3466` (từ bộ cạnh của nút 10310)
+The SNAP header says "each unordered pair of nodes is saved once" but in practice **each undirected edge is stored as 2 directed edges**. For example, edge (3466, 10310) appears in both forms:
+- Line `3466 → 10310` (from node 3466's adjacency)
+- Line `10310 → 3466` (from node 10310's adjacency)
 
-Đây là lý do in-degree = out-degree tuyệt đối cho mọi nút.
+This is why in-degree equals out-degree exactly for every node.
 
-**Quan sát 2: Không có dangling node, không có source-only node.**
+**Observation 2: No dangling node, no source-only node.**
 
-Mọi nhà khoa học trong dataset đều có ít nhất 1 cộng tác viên theo cả hai chiều. Dataset chỉ bao gồm component liên thông lớn nhất (giant component), loại bỏ các tác giả cô lập.
+Every scientist in the dataset has at least one collaborator in both directions. The dataset includes only the largest connected component (giant component), pruning isolated authors.
 
-**Quan sát 3: Node ID rất thưa và không liên tục (3466, 8579, 19607...).**
+**Observation 3: Node IDs are sparse and non-contiguous (3466, 8579, 19607...).**
 
-Đây là ID nội bộ của arXiv, không liên tục trong [0, 5241]. Hàm `WebGraph.from_edges()` phải remap về [0, 4] để dùng làm index mảng. Điều này giải thích tại sao output hiển thị `P00000..P05240` thay vì ID gốc.
+These are arXiv's internal IDs, not contiguous within [0, 5241]. `WebGraph.from_edges()` must remap to [0, 5240] for array indexing. This is why output shows `P00000..P05240` instead of the original IDs.
 
-**Quan sát 4: Phân phối out-degree gần Normal lệch phải (median=3, max=81).**
+**Observation 4: Right-skewed near-normal out-degree distribution (median=3, max=81).**
 
-Không có nút "siêu hub" như wiki-Vote (893) hay Gnutella (100). Nhà khoa học đa cộng tác nhất (nút 21012) có 81 đồng tác giả — phản ánh nhóm nghiên cứu lớn trong vật lý lý thuyết.
+There is no "super hub" as in wiki-Vote (893) or Gnutella (100). The most-collaborative scientist (node 21012) has 81 coauthors — reflecting a large research group in theoretical physics.
 
-**Ý nghĩa PageRank:**
-- Trong đồ thị symmetric: **PageRank ≈ Degree Centrality** — nút có nhiều cộng tác nhất thường đứng đầu.
-- Nhưng không hoàn toàn: PageRank là **weighted degree** qua eigenvector — nút kết nối với hub quan trọng hơn nút kết nối với leaf (như P02773 đánh bại P04281 dù cùng degree cao).
-- Eigenvalue thứ hai (λ₂) gần 1 trong mạng symmetric → **hội tụ chậm** (118 vòng so với 18–29 vòng của hai dataset kia).
+**PageRank implication:**
+- In a symmetric graph: **PageRank ≈ Degree Centrality** — the node with the most collaborations usually leads.
+- But not exactly: PageRank is a **weighted degree** via the eigenvector — a node connected to important hubs outranks one connected to leaves (e.g., P02773 beats P04281 despite equal degree).
+- The second eigenvalue (λ₂) close to 1 in a symmetric network → **slow convergence** (118 iterations vs. 18–29 for the other two datasets).
 
 ---
 
-## 5. So sánh Cấu trúc Ba Dataset
+## 5. Structural Comparison Across the Three Datasets
 
-### 5.1 Bảng tổng hợp
+### 5.1 Summary table
 
-| Đặc điểm | wiki-Vote | p2p-Gnutella04 | ca-GrQc |
+| Feature | wiki-Vote | p2p-Gnutella04 | ca-GrQc |
 |---|---|---|---|
-| **Loại mạng** | Bỏ phiếu (directed) | P2P file sharing (directed) | Cộng tác KH (undirected → directed) |
-| **Nút / Cạnh** | 7,115 / 103,689 | 10,876 / 39,994 | 5,241 / 28,968 |
-| **Node ID** | Không liên tục | Liên tục từ 0 | Rất thưa (arXiv ID) |
+| **Network type** | Voting (directed) | P2P file sharing (directed) | Scientific collaboration (undirected → directed) |
+| **Nodes / Edges** | 7,115 / 103,689 | 10,876 / 39,994 | 5,241 / 28,968 |
+| **Node ID** | Non-contiguous | Contiguous from 0 | Very sparse (arXiv IDs) |
 | **Density** = 2\|E\|/\|V\|(\|V\|-1) | 0.41% | 0.034% | 0.21% |
-| **Out-degree median** | 2 | **0** | 3 |
+| **Median out-degree** | 2 | **0** | 3 |
 | **Out-degree stdev** | **42.28** | 4.92 | 7.92 |
 | **Dangling nodes** | 14.1% | **54.6%** | **0%** |
 | **Source-only (in=0)** | **66.5%** | 0.2% | 0% |
-| **Cạnh đối xứng** | 2.8% | **0%** | **50%** |
-| **Vòng hội tụ PR** | 29 | **18** | **118** |
+| **Reciprocal edges** | 2.8% | **0%** | **50%** |
+| **PR convergence iters** | 29 | **18** | **118** |
 
-### 5.2 Đặc trưng riêng từng loại đồ thị
+### 5.2 Distinctive characteristics of each graph type
 
 ```
 wiki-Vote:
-  Rất bất đối xứng nhưng theo chiều "out":
+  Highly asymmetric along the "out" direction:
   ┌─────────────────────────────────────┐
-  │  Người bỏ phiếu nhiều ──→ hub admin│
-  │  (out=893)          (in=457)        │
-  │  66.5% nút không nhận phiếu nào    │
+  │  Heavy voters ──→ admin hubs        │
+  │  (out=893)         (in=457)         │
+  │  66.5% of nodes receive no vote    │
   └─────────────────────────────────────┘
-  → PageRank đo uy tín nhận được, không phải mức độ tham gia
+  → PageRank measures received trust, not voting activity
 
 p2p-Gnutella04:
-  Cấu trúc phân tầng rõ ràng (phân phối bimodal):
+  Clearly tiered structure (bimodal distribution):
   ┌─────────────────────────────────────┐
   │  Leaf peers (out=0) ────→ Ultrapeer│
   │  54.6%                  (in=72)    │
-  │  0% cạnh đối xứng                 │
+  │  0% reciprocal edges               │
   └─────────────────────────────────────┘
-  → PageRank đo khả năng "tiếp cận" trong mạng P2P
+  → PageRank measures "reachability" in the P2P network
 
 ca-GrQc:
-  Đồ thị vô hướng lưu dạng directed, symmetric hoàn toàn:
+  Undirected graph stored as directed, fully symmetric:
   ┌─────────────────────────────────────┐
-  │  A ←→ B (mỗi cộng tác = 2 cạnh)   │
+  │  A ←→ B (each collaboration = 2 edges)│
   │  in-degree ≡ out-degree             │
   │  0 dangling, 50% reciprocal         │
   └─────────────────────────────────────┘
-  → PageRank ≈ Eigenvector Centrality của đồ thị vô hướng
+  → PageRank ≈ Eigenvector Centrality of the undirected graph
 ```
 
-### 5.3 Tác động đến thuật toán PageRank
+### 5.3 Impact on the PageRank algorithm
 
-| Đặc trưng dữ liệu | Tác động đến PageRank |
+| Data feature | Impact on PageRank |
 |---|---|
-| **Dangling nodes cao (Gnutella 54.6%)** | Cần cơ chế teleportation mạnh; hội tụ nhanh do mass được "làm phẳng" |
-| **Source-only cao (wiki-Vote 66.5%)** | Phần lớn nút không nhận rank từ liên kết; rank chủ yếu từ (1-α)·v |
-| **0% reciprocal (Gnutella)** | Cấu trúc cây/DAG → dễ hội tụ, ít vòng lặp |
-| **50% reciprocal (ca-GrQc)** | Mạng symmetric → λ₂ ≈ 1 → hội tụ rất chậm (118–374 vòng) |
-| **Out-degree stdev cao (wiki-Vote 42.28)** | Phân phối power-law mạnh → top hub vượt trội rõ ràng |
-| **Node ID không liên tục (ca-GrQc)** | Cần bước remap về [0,n-1] trước khi dùng làm chỉ số mảng |
+| **High dangling (Gnutella 54.6%)** | Requires strong teleportation; converges quickly because mass is "flattened" |
+| **High source-only (wiki-Vote 66.5%)** | Most nodes do not receive rank from links; rank comes mainly from (1-α)·v |
+| **0% reciprocal (Gnutella)** | Tree/DAG-like structure → easy convergence, few iterations |
+| **50% reciprocal (ca-GrQc)** | Symmetric network → λ₂ ≈ 1 → very slow convergence (118–374 iterations) |
+| **High out-degree stdev (wiki-Vote 42.28)** | Strong power-law distribution → clear top-hub dominance |
+| **Non-contiguous node IDs (ca-GrQc)** | Requires remapping to [0,n-1] before use as array indices |
